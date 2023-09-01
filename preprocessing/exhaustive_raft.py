@@ -44,7 +44,9 @@ def run_exhaustive_flow(args):
     flow_out_dir = os.path.join(data_dir, 'raft_exhaustive')
     os.makedirs(flow_out_dir, exist_ok=True)
 
-    img_files = sorted(glob.glob(os.path.join(data_dir, 'color', '*')))
+    frames_path = os.path.join(data_dir, 'color')
+    assert os.path.exists(frames_path), "color folder does not exist in {}".format(data_dir)
+    img_files = sorted(glob.glob(os.path.join(frames_path, '*')))
     num_imgs = len(img_files)
     pbar = tqdm(total=num_imgs * (num_imgs - 1))
     with torch.no_grad():
