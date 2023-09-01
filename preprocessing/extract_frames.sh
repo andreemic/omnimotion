@@ -12,5 +12,5 @@ FOLDER_PATH="$2"
 # Create the frames directory if it doesn't exist
 mkdir -p "${FOLDER_PATH}/color"
 
-# Run the ffmpeg command
-ffmpeg -i "$VIDEO_FILE_NAME" -vf "fps=24" "${FOLDER_PATH}/color/%05d.jpg"
+# Run the ffmpeg command to extract frames and resize to 480p
+ffmpeg -i "$VIDEO_FILE_NAME" -vf "fps=24" -s 640x480 "${FOLDER_PATH}/color/%05d.jpg"
