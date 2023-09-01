@@ -10,7 +10,7 @@ VIDEO_FILE_NAME="$1"
 FOLDER_PATH="$2"
 
 # Create the frames directory if it doesn't exist
-mkdir -p "${FOLDER_PATH}/frames"
+mkdir -p "${FOLDER_PATH}/color"
 
 # Run the ffmpeg command
-ffmpeg -i "$VIDEO_FILE_NAME" -vf "fps=24" "${FOLDER_PATH}/frames/%05d.jpg"
+ffmpeg -i "$VIDEO_FILE_NAME" -vf "fps=24" "${FOLDER_PATH}/color/%05d.jpg"
