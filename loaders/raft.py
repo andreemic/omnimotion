@@ -9,7 +9,16 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 import multiprocessing as mp
 from util import normalize_coords, gen_grid_np
+import pickle
 
+
+def save_variable(var, name):
+    with open(f'{name}.pkl', 'wb') as f:
+        pickle.dump(var, f)
+
+def load_variable(name):
+    with open(f'{name}.pkl', 'rb') as f:
+        return pickle.load(f)
 
 def get_sample_weights(flow_stats):
     sample_weights = {}
@@ -23,6 +32,16 @@ def get_sample_weights(flow_stats):
 
 class RAFTExhaustiveDataset(Dataset):
     def __init__(self, args, max_interval=None):
+        """
+        Args considered:
+            - args.data_dir: path to the data directory from where to load frames, raft correspondences, and filtering data
+            - args.num_imgs: maximum number of images to load
+            - args.num_pts: number of points to sample per pair of images
+
+
+
+
+        """
         self.args = args
         self.seq_dir = args.data_dir
         self.seq_name = os.path.basename(self.seq_dir.rstrip('/'))
@@ -74,9 +93,15 @@ class RAFTExhaustiveDataset(Dataset):
         sample_weights[np.abs(id2s - id1) <= 1] = 0.5
         sample_weights /= np.sum(sample_weights)
 
-        img_name2 = np.random.choice(img2_candidates, p=sample_weights)
-        id2 = self.img_names.index(img_name2)
-        frame_interval = abs(id1 - id2)
+        try:
+            img_name2 = np.random.choice(img2_candidates, p=sample_weights)
+            id2 = self.img_names.index(img_name2)
+            frame_interval = abs(id1 - id2)
+        except Exception as e:
+            print(img2_candidates)
+            print(sample_weights)
+            print(e)
+            import pdb; pdb.set_trace()
 
         # read image, flow and confidence
         img1 = imageio.imread(os.path.join(self.img_dir, img_name1)) / 255.
