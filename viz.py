@@ -73,7 +73,8 @@ if __name__ == '__main__':
 
     trainer = BaseTrainer(args)
     num_imgs = trainer.num_imgs
-    vis_dir = os.path.join(args.save_dir, '{}_{}'.format(args.expname, seq_name), 'vis')
+    out_dir = os.path.join(args.save_dir, '{}_{}'.format(args.expname, seq_name)) if args.out_dir is None else args.out_dir
+    vis_dir = os.path.join(out_dir, 'vis')
     print('output will be saved in {}'.format(vis_dir))
 
     os.makedirs(vis_dir, exist_ok=True)
