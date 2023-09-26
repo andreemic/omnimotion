@@ -25,6 +25,10 @@ def get_sample_weights(flow_stats):
     for k in flow_stats.keys():
         sample_weights[k] = {}
         total_num = np.array(list(flow_stats[k].values())).sum()
+
+        # there can be frames with 0 correspondences to any other frames and the sample weights will contain a division by zero
+        if total_num.item() == 0.0:
+            total_num = 1
         for j in flow_stats[k].keys():
             sample_weights[k][j] = 1. * flow_stats[k][j] / total_num
     return sample_weights
@@ -87,13 +91,14 @@ class RAFTExhaustiveDataset(Dataset):
         img2_candidates = img2_candidates[max(id1 - max_interval, 0):min(id1 + max_interval, self.num_imgs - 1)]
 
         # sample more often from i-1 and i+1
-        id2s = np.array([self.img_names.index(n) for n in img2_candidates])
-        sample_weights = np.array([self.sample_weights[img_name1][i] for i in img2_candidates])
-        sample_weights /= np.sum(sample_weights)
-        sample_weights[np.abs(id2s - id1) <= 1] = 0.5
-        sample_weights /= np.sum(sample_weights)
 
         try:
+            id2s = np.array([self.img_names.index(n) for n in img2_candidates])
+            sample_weights = np.array([self.sample_weights[img_name1][i] for i in img2_candidates])
+            sample_weights /= np.sum(sample_weights)
+            sample_weights[np.abs(id2s - id1) <= 1] = 0.5
+            sample_weights /= np.sum(sample_weights)
+
             img_name2 = np.random.choice(img2_candidates, p=sample_weights)
             id2 = self.img_names.index(img_name2)
             frame_interval = abs(id1 - id2)
