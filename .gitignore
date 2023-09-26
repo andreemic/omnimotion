@@ -1,4 +1,5 @@
 out/
 omnimotion_videos
+*.mp4
 logs/
 __pycache__/
