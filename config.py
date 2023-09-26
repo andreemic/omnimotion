@@ -10,6 +10,7 @@ def config_parser():
     parser.add_argument('--expname', type=str, default='', help='experiment name')
     parser.add_argument('--local_rank', type=int, default=0, help='rank for distributed training')
     parser.add_argument('--save_dir', type=str, default='out/', help='output dir')
+    parser.add_argument('--out_dir', type=str, default=None, help='overwrite output directory composed from save_dir and expname')
     parser.add_argument('--ckpt_path', type=str, default='', help='checkpoint path')
     parser.add_argument('--no_reload', action='store_true', help='do not reload the weights')
     parser.add_argument('--distributed', type=int, default=0, help='if use distributed training')
