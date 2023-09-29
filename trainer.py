@@ -256,8 +256,14 @@ class BaseTrainer():
         :param x_canonical: input canonical 3D locations
         :return: dict containing colors, weights, alphas and rendered rgbs
         '''
+
+        # color: (1, 3072, 32, 3) \in [0; 1]
+        # density: torch.Size([1, 3072, 32]) \in [0; >100]
         color, density = self.get_canonical_color_and_density(x_canonical)
 
+        # density will convert to alphas in [0; 1]
+        # density -> \inf converts to alpha -> 1
+        # density -> 0 converts to alpha -> 0
         alpha = util.sigma2alpha(density)  # [n_imgs, n_pts, n_samples]
 
         # mask out the nearest 20% of samples. This trick may be helpful to avoid one local minimum solution
@@ -266,11 +272,17 @@ class BaseTrainer():
             mask = torch.ones_like(alpha)
             mask[..., :int(self.args.num_samples_ray * 0.2)] = 0
             alpha *= mask
+
+        # for each point (ray into the volume), compute transmittance = product of 1 - alpha
         T = torch.cumprod(1. - alpha + 1e-10, dim=-1)[..., :-1]  # [n_imgs, n_pts, n_samples-1]
         T = torch.cat((torch.ones_like(T[..., 0:1]), T), dim=-1)  # [n_imgs, n_pts, n_samples]
 
+        # T tells us what percentage of light has reached this point without being absorbed
+
+        # by multiplying transmittance T with the opacity at each point, we get the effective contribution (blending weight) of each color
         weights = alpha * T  # [n_imgs, n_pts, n_samples]
 
+        # now we weigh the color of each point by the weights
         rendered_rgbs = torch.sum(weights.unsqueeze(-1) * color, dim=-2)  # [n_imgs, n_pts, 3]
 
         out = {'colors': color,
@@ -334,9 +346,9 @@ class BaseTrainer():
                                        use_max_loc=False):
         '''
         get correspondences for pixels in one frame to another frame
-        :param ids1: [num_imgs]
-        :param px1s: [num_imgs, num_pts, 2]
-        :param ids2: [num_imgs]
+        :param ids1: [num_imgs] - indices of the source frame(s)
+        :param px1s: [num_imgs, num_pts, 2] - for each pair, point x,y coordinates in the source frame
+        :param ids2: [num_imgs] - indices of the target frame(s)
         :param return_depth: if returning the depth of the mapped point in the target frame
         :param use_max_loc: if using only the sample with the maximum blending weight to
                             compute the corresponding location rather than doing over composition.
@@ -345,17 +357,37 @@ class BaseTrainer():
 
         :return: px2s_pred: [num_imgs, num_pts, 2], and optionally depth: [num_imgs, num_pts, 1]
         '''
-        # [n_pair, n_pts, n_samples, 3]
+        # [n_pair, n_pts, n_samples, 3]: for each point, n_samples points on a ray
+        # for a single x,y point, each sampled 3d point has the same x,y and varied z
         x1s_samples = self.sample_3d_pts_for_pixels(px1s)
+
+        # maps 3d points from source frame volume to canoincal space and into target frame volume
         x2s_proj_samples, xs_canonical_samples = self.get_predictions(x1s_samples, ids1, ids2, return_canonical=True)
+        
+        # creates: 
+        #   - colors: predicted RGB colors by F_theta for each 3D point 
+        #   - weights: scalar weights for weighing colors at points along (considering occlusions) a single ray to produce a single RGB color ([num_imgs, num_points, num_samples])
+        #   - alphas: density for each 3D point along each ray (without considering what points are in front)
+        #   - rendered_rgbs: predicted RGB colors by F_theta, combined and weighed by the weights for each ray
+
         out = self.get_blending_weights(xs_canonical_samples)  # [n_imgs, n_pts, n_samples]
+
         if use_max_loc:
             blending_weights = out['weights']
+
+            # for each initial 2d point (and therefore each ray) pick one 3d point with the highest blending weight
             indices = torch.max(blending_weights, dim=-1, keepdim=True)[1]
+
+            # pick the point projection with the highest blending weight for each (x,y) point in the original image (meaning, for each ray)
             x2s_pred = torch.gather(x2s_proj_samples, 2, indices[..., None].repeat(1, 1, 1, 3)).squeeze(-2)
+            
+            # project resulting points back into 2D space for visualization
             return self.project(x2s_pred, return_depth=return_depth)
         else:
+            # compute weighted average of the projected points in 3D space 
             x2s_pred = torch.sum(out['weights'].unsqueeze(-1) * x2s_proj_samples, dim=-2)
+
+            # project back into 2D space for visualizations
             return self.project(x2s_pred, return_depth=return_depth)
 
     def get_correspondences_and_occlusion_masks_for_pixels(self, ids1, px1s, ids2,
