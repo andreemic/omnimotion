@@ -26,6 +26,8 @@ def vis_trail(scene_dir, kpts_foreground, kpts_background, save_path):
 
     frames = []
 
+    MIN_OPACITY = 0.0
+    DECAY_FACTOR = 2
     for i in range(num_imgs):
 
         kpts = kpts_foreground - np.median(kpts_background - kpts_background[i], axis=1, keepdims=True)
@@ -36,7 +38,7 @@ def vis_trail(scene_dir, kpts_foreground, kpts_background, save_path):
 
             img1 = img_curr.copy()
             # changing opacity
-            alpha = max(1 - 0.9 * ((i - t) / ((i + 1) * .99)), 0.1)
+            alpha = max(1 - DECAY_FACTOR * (1-MIN_OPACITY) * ((i - t) / ((i + 1) * .99)), MIN_OPACITY)
 
             for j in range(num_pts):
 
